@@ -1,0 +1,65 @@
+{
+  "runs": [
+    {
+      "n": 250,
+      "brute_s": 0.17579920200000743,
+      "brute_calls": 31125,
+      "brute_peak_bytes": 7416,
+      "lsh_s": 4.19356295700004,
+      "lsh_calls": 1,
+      "lsh_peak_bytes": 3149888
+    },
+    {
+      "n": 500,
+      "brute_s": 0.6999115740002253,
+      "brute_calls": 124750,
+      "brute_peak_bytes": 8120,
+      "lsh_s": 8.480865676999883,
+      "lsh_calls": 7,
+      "lsh_peak_bytes": 6219840
+    },
+    {
+      "n": 1000,
+      "brute_s": 2.784443490000058,
+      "brute_calls": 499500,
+      "brute_peak_bytes": 10680,
+      "lsh_s": 16.94762750599989,
+      "lsh_calls": 27,
+      "lsh_peak_bytes": 12991392
+    },
+    {
+      "n": 2000,
+      "brute_s": 11.945509370000082,
+      "brute_calls": 1999000,
+      "brute_peak_bytes": 21400,
+      "lsh_s": 34.097999523,
+      "lsh_calls": 111,
+      "lsh_peak_bytes": 26348376
+    },
+    {
+      "n": 4000,
+      "brute_s": 47.81171545899997,
+      "brute_calls": 7998000,
+      "brute_peak_bytes": 22328,
+      "lsh_s": 69.21848176199978,
+      "lsh_calls": 132,
+      "lsh_peak_bytes": 53304488
+    },
+    {
+      "n": 8000,
+      "brute_s": 185.08780637799987,
+      "brute_calls": 31996000,
+      "brute_peak_bytes": 22328,
+      "lsh_s": 129.378691698,
+      "lsh_calls": 147,
+      "lsh_peak_bytes": 107282312
+    }
+  ],
+  "machine": {
+    "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "processor": "Intel(R) Core(TM) Ultra 5 226V",
+    "other_workloads": "WSL active; user reports it uses a substantial share of RAM",
+    "python": "3.12.3",
+    "ram_bytes": 8082653184
+  }
+}
