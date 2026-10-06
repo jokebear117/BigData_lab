@@ -11,6 +11,6 @@
 - LSH first exceeded one minute at n=4,000 (69.22s); at n=8,000 brute force took 185.09s. Small inputs pay the fixed per-document cost of 120 hash minima per shingle and 30 band buckets.
 
 ## Task 3
-- With 120 hashes and 30 bands (4 rows per band), the S-curve step is (1/30)^(1/4) ≈ 0.427; at s=0.6 candidate probability is about 98.4%, intentionally below the threshold to favor recall.
+- With 120 hashes and 30 bands (4 rows per band), the S-curve step is (1/30)^(1/4) ≈ 0.427; at s=0.6 candidate probability is 1−(1−0.6⁴)^30 ≈ 98.5%, intentionally below the threshold to favor recall. Raising the step with 120 hashes and 10 bands gives (1/10)^(1/12) ≈ 0.825 and dropped recall to 29.8% (36/121 pairs).
 - The harness found all 121 true pairs (100.0% recall) with 127 comparisons instead of 2,246,140, avoiding 99.99% of comparisons.
 - Hashing is excluded from the harness score, but scales with documents × shingles × hashes; for sufficiently large collections that signature-building cost will matter too.
