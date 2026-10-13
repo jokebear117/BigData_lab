@@ -13,7 +13,7 @@ approximating.
 
     python3 task1_sketches.py --verify
 """
-import argparse, random, hashlib, math
+import argparse, hashlib, math, random, statistics
 
 
 class BloomFilter:
@@ -27,22 +27,30 @@ class BloomFilter:
     `m` bits, `k` hash functions.
     """
 
+    __slots__ = ("m", "k", "seed", "bits")
+
     def __init__(self, m, k, seed=246):
-        if m <= 0 or k <= 0: raise ValueError("m and k must be positive")
+        if m <= 0 or k <= 0:
+            raise ValueError("m and k must be positive")
         self.m, self.k, self.seed = m, k, seed
+        # Pack eight logical bits into each byte.
         self.bits = bytearray((m + 7) // 8)
 
     def _indices(self, item):
-        raw = hashlib.blake2b(str(item).encode(), digest_size=16,
-                              key=str(self.seed).encode()).digest()
-        h1, h2 = int.from_bytes(raw[:8], "big"), int.from_bytes(raw[8:], "big") | 1
-        for i in range(self.k): yield (h1 + i * h2) % self.m
+        data = str(item).encode()
+        for i in range(self.k):
+            # A separate deterministic hash for each seed/hash index pair.
+            salt = f"{self.seed}:{i}:".encode()
+            digest = hashlib.blake2b(salt + data, digest_size=8).digest()
+            yield int.from_bytes(digest, "big") % self.m
 
     def add(self, item):
-        for i in self._indices(item): self.bits[i >> 3] |= 1 << (i & 7)
+        for index in self._indices(item):
+            self.bits[index // 8] |= 1 << (index % 8)
 
     def __contains__(self, item):
-        return all(self.bits[i >> 3] & (1 << (i & 7)) for i in self._indices(item))
+        return all(self.bits[index // 8] & (1 << (index % 8))
+                   for index in self._indices(item))
 
     def expected_fp_rate(self, n_inserted):
         """The textbook's predicted false-positive rate after n insertions.
@@ -50,7 +58,10 @@ class BloomFilter:
         §4.4.2 derives it. Return the number, do not measure it - the harness
         measures separately and compares the two.
         """
-        return (1.0 - math.exp(-self.k * n_inserted / self.m)) ** self.k
+        if n_inserted < 0:
+            raise ValueError("n_inserted must be nonnegative")
+        # (1 - exp(-k*n/m))**k; expm1 stays accurate near zero.
+        return (-math.expm1(-self.k * n_inserted / self.m)) ** self.k
 
 
 def flajolet_martin(stream, n_hashes=64, seed=246):
@@ -75,29 +86,28 @@ def flajolet_martin(stream, n_hashes=64, seed=246):
 
     Return your estimate as a float.
     """
-    if n_hashes < 1: raise ValueError("n_hashes must be positive")
+    if n_hashes <= 0:
+        raise ValueError("n_hashes must be positive")
+    salts = [f"{seed}:{i}:".encode() for i in range(n_hashes)]
     maxima = [0] * n_hashes
-    mask = (1 << 64) - 1
+    has_items = False
     for item in stream:
-        b = str(item).encode()
-        for j in range(n_hashes):
-            d = hashlib.blake2b(b, digest_size=8,
-                key=f"{seed}:{j}".encode()[:64]).digest()
-            x = int.from_bytes(d, "big")
-            # trailing zero count; map the all-zero hash to 64
-            r = 64 if x == 0 else (x & -x).bit_length() - 1
-            if r > maxima[j]: maxima[j] = r
-    # Median of groups, with geometric normalization for one-based ranks.
-    groups = [maxima[i:i + 4] for i in range(0, n_hashes, 4)]
-    estimates = []
-    for group in groups:
-        if group:
-            ordered = sorted(group)
-            lo, hi = ordered[(len(ordered) - 1)//2], ordered[len(ordered)//2]
-            estimates.append(0.77351 * (2.0**lo + 2.0**hi) / 2.0)
-    if not estimates: return 0.0
-    ordered = sorted(estimates)
-    return float((ordered[(len(ordered)-1)//2] + ordered[len(ordered)//2]) / 2.0)
+        has_items = True
+        data = str(item).encode()
+        for i, salt in enumerate(salts):
+            value = int.from_bytes(
+                hashlib.blake2b(salt + data, digest_size=8).digest(), "big")
+            # x & -x isolates the lowest set bit; a zero hash has 64 zeros.
+            zeros = (value & -value).bit_length() - 1 if value else 64
+            maxima[i] = max(maxima[i], zeros)
+    if not has_items:
+        return 0.0
+    # Average exponents within groups (a geometric mean of 2**R), then
+    # take the median across groups. Large 2**R outliers cannot dominate.
+    group_size = max(1, math.isqrt(n_hashes))
+    estimates = [2.0 ** statistics.mean(maxima[i:i + group_size])
+                 for i in range(0, n_hashes, group_size)]
+    return float(statistics.median(estimates))
 
 
 def reservoir_sample(stream, k, seed=246):
@@ -108,15 +118,21 @@ def reservoir_sample(stream, k, seed=246):
 
     Return a list of k items (or fewer if the stream was shorter).
     """
-    if k < 0: raise ValueError("k must be non-negative")
+    if k < 0:
+        raise ValueError("k must be nonnegative")
+    if k == 0:
+        return []
     rng = random.Random(seed)
-    reservoir = []
+    sample = []
     for i, item in enumerate(stream):
-        if i < k: reservoir.append(item)
+        if i < k:
+            sample.append(item)
         else:
+            # Item i is the (i+1)-th arrival: select it with k/(i+1).
             j = rng.randrange(i + 1)
-            if j < k: reservoir[j] = item
-    return reservoir
+            if j < k:
+                sample[j] = item
+    return sample
 
 
 # ------------------------------------------------------------------- harness

@@ -1,17 +1,41 @@
-# Exact counting versus a bounded sketch
+# Task 2 measurements
 
-- Machine: Windows 11 x64, Intel Core Ultra 5 226V, 15.54 GiB RAM, Python 3.12.10. Codex, a browser and normal desktop applications were open; measurements were not isolated from other workloads.
-- The exact column holds distinct strings in a Python `set`; memory is tracemalloc peak. The sketch uses eight FM hashes for this larger measurement, while Task 1's accuracy check uses the default 64.
+- Platform: Linux-6.6.87.2-microsoft-standard-WSL2-x86_64
+- CPU: Intel Core Ultra 5 226V
+- Python: 3.12.3
+- Host RAM: 8082649088 bytes
+- Other running work: Codex and measurement Python were running during the measurements. User reports WSL, VS Code and ChatGPT app; other Windows processes were not inspected.
+- Stopping reason (A2): For target n=10,240,000, stopped after consuming 9,800,000 items in 30.2029 seconds, exceeding the predeclared 30-second latency threshold. Time became burdensome first; process peak RSS was 750,927,872 bytes, below the 25%-of-WSL-RAM threshold. No out-of-memory failure occurred.
 
-| Stream n | Exact time (s) | Exact peak (MB) | FM time (s) | FM peak (bytes) | FM estimate / truth |
-|---:|---:|---:|---:|---:|---:|
-| 100,000 | 0.20 | 3.93 | 5.24 | 3,946 | 1.38× |
-| 200,000 | 0.59 | 5.76 | 12.78 | 3,946 | 0.86× |
-| 400,000 | 1.18 | 11.59 | 26.06 | 3,948 | 1.64× |
-| 1,600,000 | 4.90 | 46.65 | 103.30 | 4,012 | 0.69× |
+Memory is tracemalloc peak Python allocation, not total process RSS.
+Container memory limits may differ from host RAM.
 
-From 100,000 to 1,600,000 items (16×), the exact set's peak grew 11.9× and its measured time grew 24.7×. The sketch's retained peak changed by only 66 bytes (about 1.7%), staying near 4 KB because it stores hash maxima rather than stream items. Its estimates ranged from 0.69× to 1.64× of truth; the error did not steadily improve with a larger stream.
+| n | distinct | exact seconds | exact peak bytes | FM seconds | FM peak bytes | FM / truth |
+|---:|---:|---:|---:|---:|---:|---:|
+| 10000 | 3675 | 0.018 | 313696 | 2.901 | 7588 | 1.495 |
+| 40000 | 14665 | 0.077 | 1250919 | 11.559 | 7591 | 1.040 |
+| 160000 | 58799 | 0.323 | 5030517 | 42.845 | 7591 | 1.648 |
+| 640000 | 235071 | 1.345 | 20539688 | 173.141 | 7594 | 1.446 |
 
-## Where exact counting became unpleasant
+## Additional exact-only stress measurements
 
-I extended the exact-only run to 25,000,000 stream items (about 9,179,304 distinct strings). It completed in 79.64 seconds and peaked at 744,836,356 traced bytes (744.8 MB). On this 15.54 GiB machine, time was the first practical limit; the process did not exhaust RAM or fail. I stopped there rather than spend several more minutes scaling the exact set further. The largest full exact-versus-FM comparison remains 1.6 million because the eight-hash sketch takes 103 seconds at that size.
+Both methods were compared in the table above. The following runs only probe exact-set burden.
+Predeclared stopping criteria: 30 seconds or process RSS >= 25% of WSL RAM.
+Stopped runs count only consumed items; they are not completed measurements of target n.
+
+| target n | consumed | completed | distinct in consumed prefix | exact seconds | Python peak bytes | process peak RSS bytes |
+|---:|---:|:---:|---:|---:|---:|---:|
+| 2560000 | 2560000 | True | 940091 | 7.874 | 82368287 | 198737920 |
+| 10240000 | 9800000 | False | 3721563 | 30.203 | 331509774 | 750927872 |
+
+RSS includes interpreter and tracemalloc bookkeeping, beyond the set's Python allocations.
+Each stress size runs in a fresh Python process.
+
+Endpoint comparison: n increased 64.0x.
+- Exact: memory increased 65.48x; empirical exponent 1.01 (memory ~ n^exponent).
+- FM: memory increased 1.00x; empirical exponent 0.00 (memory ~ n^exponent).
+
+Expected growth: exact O(distinct), FM O(n_hashes) for fixed 64-bit hashes.
+FM accuracy ratios above show estimation error at each size; error need not decrease with n.
+
+These are restored earlier measurements, not a fresh benchmark. Physical laptop RAM reported by the user: 16 GiB; measured WSL RAM: 7.53 GiB.

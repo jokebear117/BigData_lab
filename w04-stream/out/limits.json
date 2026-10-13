@@ -1,53 +1,80 @@
 {
+  "provenance": "Restored from measurements recorded earlier in this session; not new measurements.",
+  "machine": {
+    "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64",
+    "processor": "Intel Core Ultra 5 226V",
+    "python": "3.12.3",
+    "ram_bytes": 8082649088,
+    "physical_ram_bytes_user_reported": 17179869184,
+    "other_running": "Codex and measurement Python were running during the measurements. User reports WSL, VS Code and ChatGPT app; other Windows processes were not inspected."
+  },
+  "stop_reason": "For target n=10,240,000, stopped after consuming 9,800,000 items in 30.2029 seconds, exceeding the predeclared 30-second latency threshold. Time became burdensome first; process peak RSS was 750,927,872 bytes, below the 25%-of-WSL-RAM threshold. No out-of-memory failure occurred.",
   "runs": [
     {
-      "n": 100000,
-      "true_distinct": 36702,
-      "exact_s": 0.1986040000047069,
-      "exact_peak_bytes": 3925612,
-      "fm_estimate": 50692.75136,
-      "fm_s": 5.237105699983658,
-      "fm_peak_bytes": 3946,
-      "fm_hashes": 8,
-      "fm_ratio": 1.3811986093400905
+      "n": 10000,
+      "true_distinct": 3675,
+      "exact_s": 0.018193508,
+      "exact_peak_bytes": 313696,
+      "fm_estimate": 5492.311717,
+      "fm_s": 2.900783811,
+      "fm_peak_bytes": 7588,
+      "fm_ratio": 1.494506589659864
     },
     {
-      "n": 200000,
-      "true_distinct": 73410,
-      "exact_s": 0.5930187999911141,
-      "exact_peak_bytes": 5761099,
-      "fm_estimate": 63365.93920000001,
-      "fm_s": 12.78121960000135,
-      "fm_peak_bytes": 3946,
-      "fm_hashes": 8,
-      "fm_ratio": 0.8631785751260047
+      "n": 40000,
+      "true_distinct": 14665,
+      "exact_s": 0.076869802,
+      "exact_peak_bytes": 1250919,
+      "fm_estimate": 15250.334887,
+      "fm_s": 11.558571737,
+      "fm_peak_bytes": 7591,
+      "fm_ratio": 1.0399137324923287
     },
     {
-      "n": 400000,
-      "true_distinct": 146970,
-      "exact_s": 1.1750567999843042,
-      "exact_peak_bytes": 11591332,
-      "fm_estimate": 240790.56896,
-      "fm_s": 26.055236400017748,
-      "fm_peak_bytes": 3948,
-      "fm_hashes": 8,
-      "fm_ratio": 1.6383654416547595
+      "n": 160000,
+      "true_distinct": 58799,
+      "exact_s": 0.322660805,
+      "exact_peak_bytes": 5030517,
+      "fm_estimate": 96876.114339,
+      "fm_s": 42.844724117,
+      "fm_peak_bytes": 7591,
+      "fm_ratio": 1.6475809850337593
     },
     {
-      "n": 1600000,
-      "true_distinct": 587625,
-      "exact_s": 4.901062600023579,
-      "exact_peak_bytes": 46647630,
-      "fm_estimate": 405542.01088,
-      "fm_s": 103.30066569999326,
-      "fm_peak_bytes": 4012,
-      "fm_hashes": 8,
-      "fm_ratio": 0.6901374360859391
+      "n": 640000,
+      "true_distinct": 235071,
+      "exact_s": 1.344623275,
+      "exact_peak_bytes": 20539688,
+      "fm_estimate": 339958.708214,
+      "fm_s": 173.141435696,
+      "fm_peak_bytes": 7594,
+      "fm_ratio": 1.4461958651386175
     }
   ],
-  "machine": {
-    "platform": "Windows-11-10.0.26200-SP0",
-    "processor": "Intel64 Family 6 Model 189 Stepping 1, GenuineIntel",
-    "python": "3.12.10"
-  }
+  "exact_stress_runs": [
+    {
+      "target_n": 2560000,
+      "consumed": 2560000,
+      "completed": true,
+      "observed_distinct": 940091,
+      "exact_s": 7.873948275,
+      "exact_peak_bytes": 82368287,
+      "process_peak_rss_bytes": 198737920,
+      "rss_threshold_bytes": 2020662272,
+      "time_threshold_s": 30,
+      "stopped_reason": "completed"
+    },
+    {
+      "target_n": 10240000,
+      "consumed": 9800000,
+      "completed": false,
+      "observed_distinct": 3721563,
+      "exact_s": 30.202899675,
+      "exact_peak_bytes": 331509774,
+      "process_peak_rss_bytes": 750927872,
+      "rss_threshold_bytes": 2020662272,
+      "time_threshold_s": 30,
+      "stopped_reason": "exact exceeded 30 seconds"
+    }
+  ]
 }

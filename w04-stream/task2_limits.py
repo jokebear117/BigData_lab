@@ -20,10 +20,75 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "out")
 
 
-def machine():
-    return {"platform": platform.platform(),
+def machine(other_running="not recorded"):
+    info = {"platform": platform.platform(),
             "processor": platform.processor() or platform.machine(),
-            "python": platform.python_version()}
+            "python": platform.python_version(),
+            "other_running": other_running}
+    # Linux reports the CPU model and host RAM; containers may have less RAM.
+    if os.path.exists("/proc/cpuinfo"):
+        with open("/proc/cpuinfo") as f:
+            for line in f:
+                if line.startswith("model name"):
+                    info["processor"] = line.split(":", 1)[1].strip()
+                    break
+    if os.path.exists("/proc/meminfo"):
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("MemTotal:"):
+                    info["ram_bytes"] = int(line.split()[1]) * 1024
+                    break
+    return info
+
+
+def write_report(data):
+    """Write measured results; the user supplies the actual stopping reason."""
+    info = data["machine"]
+    lines = ["# Task 2 measurements", "",
+             f"- Platform: {info['platform']}",
+             f"- CPU: {info['processor']}",
+             f"- Python: {info['python']}",
+             f"- Host RAM: {info.get('ram_bytes', 'not recorded')} bytes",
+             f"- Other running work: {info['other_running']}",
+             f"- Stopping reason (A2): {data.get('stop_reason', 'Not recorded; these measurements do not establish a limit.')}",
+             "", "Memory is tracemalloc peak Python allocation, not total process RSS.",
+             "Container memory limits may differ from host RAM.", "",
+             "| n | distinct | exact seconds | exact peak bytes | FM seconds | FM peak bytes | FM / truth |",
+             "|---:|---:|---:|---:|---:|---:|---:|"]
+    for row in data["runs"]:
+        lines.append(f"| {row['n']} | {row['true_distinct']} | {row['exact_s']:.3f} | "
+                     f"{row['exact_peak_bytes']} | {row.get('fm_s', 0):.3f} | "
+                     f"{row.get('fm_peak_bytes', 'N/A')} | {row.get('fm_ratio', 0):.3f} |")
+    stress = data.get("exact_stress_runs", [])
+    if stress:
+        lines.extend(["", "## Additional exact-only stress measurements", "",
+                      "Both methods were compared in the table above. The following runs only probe exact-set burden.",
+                      "Predeclared stopping criteria: 30 seconds or process RSS >= 25% of WSL RAM.",
+                      "Stopped runs count only consumed items; they are not completed measurements of target n.", "",
+                      "| target n | consumed | completed | distinct in consumed prefix | exact seconds | Python peak bytes | process peak RSS bytes |",
+                      "|---:|---:|:---:|---:|---:|---:|---:|"])
+        for row in stress:
+            lines.append(f"| {row['target_n']} | {row['consumed']} | {row['completed']} | "
+                         f"{row['observed_distinct']} | {row['exact_s']:.3f} | "
+                         f"{row['exact_peak_bytes']} | {row['process_peak_rss_bytes']} |")
+        lines.extend(["", "RSS includes interpreter and tracemalloc bookkeeping, beyond the set's Python allocations.",
+                      "Each stress size runs in a fresh Python process."])
+    # Use the latest run per size when comparing the endpoints.
+    rows = sorted({r["n"]: r for r in data["runs"]}.values(), key=lambda r: r["n"])
+    if len(rows) >= 2:
+        import math
+        first, last = rows[0], rows[-1]
+        span = last["n"] / first["n"]
+        lines.extend(["", f"Endpoint comparison: n increased {span:.1f}x."])
+        for name, key in [("Exact", "exact_peak_bytes"), ("FM", "fm_peak_bytes")]:
+            if first.get(key, 0) and last.get(key, 0):
+                factor = last[key] / first[key]
+                exponent = math.log(factor) / math.log(span)
+                lines.append(f"- {name}: memory increased {factor:.2f}x; empirical exponent {exponent:.2f} (memory ~ n^exponent).")
+    lines.extend(["", "Expected growth: exact O(distinct), FM O(n_hashes) for fixed 64-bit hashes.",
+                  "FM accuracy ratios above show estimation error at each size; error need not decrease with n."])
+    with open(os.path.join(OUT, "limits.md"), "w") as f:
+        f.write("\n".join(lines) + "\n")
 
 
 def stream(n, distinct_ratio=0.4, seed=246):
@@ -51,7 +116,13 @@ def exact_distinct(n):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--sizes", default="100000,400000,1600000")
+    p.add_argument("--other-running", default="not recorded",
+                   help="describe other work running during the measurement")
+    p.add_argument("--stop-reason", help="size where exact became unpleasant, and why")
     a = p.parse_args()
+    sizes = [int(x) for x in a.sizes.split(",")]
+    if any(n <= 0 for n in sizes):
+        p.error("sizes must be positive")
     os.makedirs(OUT, exist_ok=True)
 
     try:
@@ -60,7 +131,7 @@ def main():
         flajolet_martin = None
 
     rows = []
-    for n in [int(x) for x in a.sizes.split(",")]:
+    for n in sizes:
         true, t_exact, m_exact = exact_distinct(n)
         row = {"n": n, "true_distinct": true, "exact_s": t_exact,
                "exact_peak_bytes": m_exact}
@@ -69,14 +140,12 @@ def main():
             try:
                 tracemalloc.start()
                 t0 = time.perf_counter()
-                # Eight independent registers are enough for this coarse
-                # factor-of-two study and keep the multi-million-item run practical.
-                est = flajolet_martin(stream(n), n_hashes=8)
+                est = flajolet_martin(stream(n))
                 t_fm = time.perf_counter() - t0
                 _, m_fm = tracemalloc.get_traced_memory()
                 tracemalloc.stop()
                 row.update({"fm_estimate": est, "fm_s": t_fm,
-                            "fm_peak_bytes": m_fm, "fm_hashes": 8,
+                            "fm_peak_bytes": m_fm,
                             "fm_ratio": est / true if true else None})
             except NotImplementedError:
                 tracemalloc.stop()
@@ -91,9 +160,13 @@ def main():
 
     path = os.path.join(OUT, "limits.json")
     prior = json.load(open(path)) if os.path.exists(path) else {"runs": []}
-    prior["machine"] = machine()
+    prior["machine"] = machine(a.other_running)
+    if a.stop_reason:
+        prior["stop_reason"] = a.stop_reason
     prior["runs"].extend(rows)
-    json.dump(prior, open(path, "w"), indent=2)
+    with open(path, "w") as f:
+        json.dump(prior, f, indent=2)
+    write_report(prior)
     print(f"\n  -> out/limits.json  ({len(prior['runs'])} measurement(s))")
     print("  Keep raising --sizes until the exact version is unbearable. "
           "Record where, and what ran out.")

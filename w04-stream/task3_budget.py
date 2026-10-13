@@ -17,8 +17,9 @@ The whole point of this structure is that "no" means no. A filter that gets a
 better score by occasionally forgetting something it was given has not improved
 anything, it has broken the contract.
 """
-import hashlib
-import math
+import hashlib, math, sys
+
+from task1_sketches import BloomFilter
 
 
 class NaiveFilter:
@@ -44,7 +45,7 @@ class NaiveFilter:
         return self.n_bits
 
 
-class YourFilter:
+class YourFilter(BloomFilter):
     """Your filter.
 
         __init__(n_bits, seed=246)
@@ -65,25 +66,34 @@ class YourFilter:
     observation.md asks.
     """
 
-    def __init__(self, n_bits, seed=246):
-        self.n_bits, self.seed = n_bits, seed
-        self.n_items = 0
-        self.k = max(1, round((n_bits / 8000) * math.log(2)))
-        self.bits = bytearray((n_bits + 7) // 8)
+    __slots__ = ()
 
-    def _indices(self, item):
-        raw = hashlib.blake2b(str(item).encode(), digest_size=16,
-                              key=str(self.seed).encode()).digest()
-        h1 = int.from_bytes(raw[:8], "big")
-        h2 = int.from_bytes(raw[8:], "big") | 1
-        for i in range(self.k): yield (h1 + i * h2) % self.n_bits
+    def __init__(self, n_bits, seed=246):
+        # The assignment harness inserts 8,000 items. k* = (m/n) ln(2).
+        # Reserve space for Python object/bytearray/parameter overhead too.
+        super().__init__(max(1, n_bits), 1, seed)
+        overhead = self.memory_bits() - len(self.bits) * 8
+        n_bytes = (n_bits - overhead) // 8
+        if n_bytes <= 0:
+            raise ValueError("budget is too small for the filter's metadata")
+        self.bits = bytearray(n_bytes)
+        self.m = n_bytes * 8
+        self.k = max(1, round(self.m / 8_000 * math.log(2)))
+        # Recheck because Python integer storage can change with magnitude.
+        while self.memory_bits() > n_bits and self.bits:
+            self.bits.pop()
+            self.m = len(self.bits) * 8
+        if not self.bits:
+            raise ValueError("budget is too small for the filter's metadata")
 
     def add(self, item):
-        for i in self._indices(item): self.bits[i >> 3] |= 1 << (i & 7)
-        self.n_items += 1
+        super().add(item)
 
     def __contains__(self, item):
-        return all(self.bits[i >> 3] & (1 << (i & 7)) for i in self._indices(item))
+        return super().__contains__(item)
 
     def memory_bits(self):
-        return len(self.bits) * 8
+        # Count all persistent instance state, including Python overhead.
+        values = (self, self.bits, self.m, self.k, self.seed)
+        unique = {id(value): value for value in values}
+        return sum(sys.getsizeof(value) for value in unique.values()) * 8
