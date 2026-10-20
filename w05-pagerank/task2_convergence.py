@@ -21,9 +21,40 @@ OUT = os.path.join(HERE, "out")
 
 
 def machine():
-    return {"platform": platform.platform(),
-            "processor": platform.processor() or platform.machine(),
-            "python": platform.python_version()}
+    processor = platform.processor() or platform.machine()
+    try:
+        with open("/proc/cpuinfo") as f:
+            processor = next(line.split(":", 1)[1].strip() for line in f
+                             if line.startswith("model name"))
+    except (OSError, StopIteration):
+        pass
+    ram_gib = None
+    try:
+        with open("/proc/meminfo") as f:
+            ram_gib = round(int(next(line.split()[1] for line in f
+                                     if line.startswith("MemTotal:"))) / 1024**2, 1)
+    except (OSError, StopIteration, ValueError):
+        pass
+    return {"platform": platform.platform(), "processor": processor,
+            "ram_gib": ram_gib, "python": platform.python_version()}
+
+
+def write_markdown(data):
+    rows = sorted(data.get("runs", []), key=lambda r: (r["nodes"], r["tol"], r["beta"]))
+    lines = ["# PageRank convergence measurements", "",
+             f"Machine: {data['machine'].get('processor')} · "
+             f"{data['machine'].get('ram_gib')} GiB RAM · "
+             f"{data['machine'].get('platform')} · Python {data['machine'].get('python')}", "",
+             "| Nodes | β | Tolerance | Iterations | Seconds | Top 10 |",
+             "|---:|---:|---:|---:|---:|---|"]
+    for r in rows:
+        lines.append(f"| {r['nodes']:,} | {r['beta']:g} | {r['tol']:g} | "
+                     f"{r['iterations']} | {r['seconds']:.3f} | "
+                     f"{', '.join(r['top10'])} |")
+    lines += ["", "See `observation.md` for interpretation of beta, graph size, "
+              "tolerance, and top-10 changes.", ""]
+    with open(os.path.join(OUT, "convergence.md"), "w") as f:
+        f.write("\n".join(lines))
 
 
 def main():
@@ -59,7 +90,9 @@ def main():
     prior = json.load(open(path)) if os.path.exists(path) else {"runs": []}
     prior["machine"] = machine()
     prior["runs"].extend(rows)
-    json.dump(prior, open(path, "w"), indent=2)
+    with open(path, "w") as f:
+        json.dump(prior, f, indent=2)
+    write_markdown(prior)
     print(f"\n  -> out/convergence.json  ({len(prior['runs'])} run(s))")
 
 

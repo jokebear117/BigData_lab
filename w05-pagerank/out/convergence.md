@@ -1,27 +1,18 @@
-# Convergence observations
+# PageRank convergence measurements
 
-- Platform: Windows 11 x64, Intel Core Ultra 5 226V, 15.54 GiB RAM, Python 3.12.10. Browser, editor and ordinary desktop applications were open; no controlled isolation was used.
-- For the 1,200-node graph at tolerance `1e-10`, iterations rose as beta approached 1, from 14 at 0.5 to 24 at 0.99. Larger beta means less teleportation and slower mixing; this graph has a small trap that retains probability for longer.
+Machine: Intel(R) Core(TM) Ultra 5 226V · 7.5 GiB RAM · Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39 · Python 3.12.3
 
-## Beta curve (1,200 nodes)
+| Nodes | β | Tolerance | Iterations | Seconds | Top 10 |
+|---:|---:|---:|---:|---:|---|
+| 1,200 | 0.5 | 1e-10 | 14 | 0.006 | p00009, p00001, p00006, p00005, p00003, p00002, p00000, p00004, p00007, p00008 |
+| 1,200 | 0.7 | 1e-10 | 17 | 0.009 | p00009, p00001, p00006, p00005, p00003, p00002, p00004, p00000, p00007, p00008 |
+| 1,200 | 0.85 | 1e-10 | 20 | 0.008 | p00009, p00001, p00006, p00005, p00003, p00002, p00004, p00000, p00007, p00008 |
+| 1,200 | 0.95 | 1e-10 | 23 | 0.010 | p00009, p00001, p00006, p00005, p00003, p00002, p00004, p00000, p00007, p00008 |
+| 1,200 | 0.99 | 1e-10 | 24 | 0.009 | p00009, p00001, p00006, p00005, p00003, p00002, p00004, p00000, p00007, p00008 |
+| 1,200 | 0.85 | 1e-06 | 12 | 0.005 | p00009, p00001, p00006, p00005, p00003, p00002, p00004, p00000, p00007, p00008 |
+| 1,200 | 0.85 | 0.001 | 7 | 0.004 | p00009, p00001, p00006, p00005, p00003, p00002, p00004, p00000, p00007, p00008 |
+| 20,000 | 0.85 | 1e-10 | 21 | 0.302 | p00009, p00001, p00006, p00005, p00003, p00002, p00004, p00000, p00007, p00008 |
+| 20,000 | 0.95 | 1e-10 | 24 | 0.217 | p00009, p00001, p00006, p00005, p00003, p00002, p00004, p00000, p00007, p00008 |
+| 20,000 | 0.85 | 1e-06 | 12 | 0.109 | p00009, p00001, p00006, p00005, p00003, p00002, p00004, p00000, p00007, p00008 |
 
-| beta | iterations | seconds |
-|---:|---:|---:|
-| 0.50 | 14 | 0.0057 |
-| 0.70 | 17 | 0.0068 |
-| 0.85 | 20 | 0.0082 |
-| 0.95 | 23 | 0.0096 |
-| 0.99 | 24 | 0.0096 |
-
-## Graph size (beta 0.85, tolerance 1e-10)
-
-| nodes | iterations | seconds |
-|---:|---:|---:|
-| 1,200 | 20 | 0.0082 |
-| 20,000 | 21 | 0.1733 |
-
-Iterations were nearly constant (20–21), while wall time rose about 21× as node count grew 16.7×: each iteration visits nodes and edges, while convergence depends mainly on beta, graph structure and tolerance.
-
-## Tolerance and ranking
-
-At 1,200 nodes and beta 0.85, tolerance `1e-6` took 12 iterations; `1e-10` took 20. Four extra decimal orders cost 8 iterations here. The ordered top 10 first changed at beta 0.7: p00004 moved ahead of p00000 (the top-10 membership remained the same through 0.99). For this graph the leading set is stable, but close positions can swap with beta, so a published rank should state its beta and graph.
+See `observation.md` for interpretation of beta, graph size, tolerance, and top-10 changes.

@@ -88,27 +88,45 @@ class YourPageRank:
     def __init__(self, beta=0.85, tol=1e-10, max_iter=100):
         self.beta, self.tol, self.max_iter = beta, tol, max_iter
         self.iterations = 0
+        self._held_floats = 0
 
     def run(self, graph):
-        nodes = list(graph); n = len(nodes)
-        if not n: self.iterations = 0; self._memory = 0; return {}
-        rank = [1.0 / n] * n
-        outgoing = [graph[v] for v in nodes]
+        nodes = list(graph)
+        n = len(nodes)
+        if n == 0:
+            self._held_floats = 0
+            self.iterations = 0
+            return {}
         index = {v: i for i, v in enumerate(nodes)}
-        # Current/next rank vectors plus the scalar accumulators used in a step.
-        self._memory = 2 * n + 6
-        for self.iterations in range(1, self.max_iter + 1):
-            dangling = sum(rank[i] for i, outs in enumerate(outgoing) if not outs)
+        # Retain only the given adjacency lists and two rank vectors; no matrix
+        # or per-edge floating point weights are needed.
+        ranks = [1.0 / n] * n
+        nxt = [0.0] * n
+        for iteration in range(1, self.max_iter + 1):
+            dangling = 0.0
+            for i, node in enumerate(nodes):
+                if not graph[node]:
+                    dangling += ranks[i]
             base = (1.0 - self.beta) / n + self.beta * dangling / n
-            nxt = [base] * n
-            for i, outs in enumerate(outgoing):
+            for i in range(n):
+                nxt[i] = base
+            for i, node in enumerate(nodes):
+                outs = graph[node]
                 if outs:
-                    share = self.beta * rank[i] / len(outs)
-                    for w in outs: nxt[index[w]] += share
-            delta = sum(abs(a - b) for a, b in zip(nxt, rank))
-            rank = nxt
-            if delta < self.tol: break
-        return {v: rank[i] for i, v in enumerate(nodes)}
+                    share = self.beta * ranks[i] / len(outs)
+                    for target in outs:
+                        nxt[index[target]] += share
+            delta = 0.0
+            for i in range(n):
+                delta += abs(nxt[i] - ranks[i])
+            ranks, nxt = nxt, ranks
+            self.iterations = iteration
+            if delta < self.tol:
+                break
+        # Peak includes both work vectors and the returned rank dictionary
+        # while that dictionary is being built.
+        self._held_floats = 3 * n
+        return {node: ranks[i] for i, node in enumerate(nodes)}
 
     def memory_floats(self):
-        return self._memory
+        return self._held_floats

@@ -1,13 +1,25 @@
-# Observations
+# Week 5 observation.md
 
 ## Task 1
-- A dead end's rank vanishes in the uncorrected walk; I redistribute dangling rank uniformly, which conserves total rank. Teleportation also lets the surfer leave a spider trap, so one mechanism fixes both failures.
-- `beta` is the probability of following an outgoing link; with probability `1-beta` the surfer teleports uniformly to a page.
+
+막다른 노드에서는 링크를 따라 나갈 곳이 없어 rank가 사라지므로, 그 rank를 모아 모든 노드에 균등하게 나눠 줬다.
+매번 전체 노드로 teleport할 확률을 두면 막다른 노드의 rank를 보전하고 spider trap 밖으로도 이동할 수 있다.
+β는 링크를 따라갈 확률이며, 1−β의 확률로는 전체 페이지 중 하나로 무작위 이동한다.
 
 ## Task 2
-- On this graph iterations increased from 14 at beta 0.5 to 24 at 0.99; at 20,000 nodes runtime rose to 0.173 s while iterations stayed near 20. The ordered top 10 first swapped p00000 and p00004 at beta 0.7, although membership stayed fixed.
-- Tolerance `1e-6` needed 12 iterations versus 20 for `1e-10`. Machine details and the full curves are in `out/convergence.md`.
+
+β가 0.5에서 0.99로 커질 때 반복은 14회에서 24회로 늘었다. teleport가 줄어 순위가 섞이는 속도가 느려지기 때문이다.
+노드가 1,200에서 20,000개로 늘어도 β=0.85 반복 수는 20회에서 21회였지만, 시간은 0.008초에서 0.302초로 늘었다. 허용오차를 1e-3에서 1e-10으로 낮추면 7회에서 20회로 13회 더 필요해 소수점 한 자리당 약 1.9회가 추가됐다.
+Top-10 구성은 같았고 순서는 β=0.7에서 처음 바뀌었다. 측정 환경은 Ultra 5 226V, WSL2 할당 RAM 7.5GiB이며 VS Code와 ChatGPT 앱을 사용했다.
 
 ## Task 3
-- The solver keeps two rank vectors plus six scalar accumulators (2n+6 floats), scattering along the graph's existing adjacency list instead of storing an n×n matrix. It used 2,406 floats versus 1,440,000 dense, ran over 50× faster, and worst rank difference was `1.18e-15`.
-- Teleportation adds the same `(1-beta)/n` to every node, so initialize each next-rank entry with that constant; dangling mass is another scalar uniform addition. Neither needs an n×n matrix.
+
+전이행렬 대신 입력 인접 리스트를 순회하고 rank 벡터를 저장했다. 1,200개 노드에서 peak 3,600 floats(3n)로 밀집 버전보다 400배 적었다.
+Teleport는 각 노드에 더할 같은 상수로, 막다른 노드 rank는 하나의 합으로 모아 매 반복의 초기 벡터에 반영하므로 n×n 행렬이 필요 없다.
+밀집 답과의 최악 차이는 1.18e-15였고, 측정 시간은 62.4배 빨랐다.
+
+## Task 4 · optional
+
+50,000노드에서 로컬은 5.33초, Spark는 14.14초로 Spark가 2.7배 느렸고 둘 다 top 노드는 147이었다. 200,000노드에서는 26.18초 대 18.99초, 400,000노드에서는 57.35초 대 29.71초로 둘 다 완료했다.
+로컬 peak는 50k/100k/200k/400k에서 22.7/45.4/90.8/181.5MB로 거의 선형 증가했고 400k에서는 시간이 사용성의 한계였다. 이 peak는 입력 edge list를 제외하며, Spark peak는 측정하지 않았다. 클러스터 Spark는 파티션을 여러 실행기에 나눌 수 있지만 이번 local[*] 실행은 한 머신이고 드라이버가 edge list를 보유한다.
+Spark rank 합은 50k/200k/400k에서 0.9959/0.9955/0.9956이었다. 생성 그래프에는 막다른 노드가 없지만, 기여도가 없는 노드가 RDD에서 빠져 teleport를 받지 못하므로 전체 노드에 균등 teleport를 적용해야 한다.

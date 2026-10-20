@@ -41,23 +41,29 @@ def pagerank(graph, beta=0.85, iterations=100, tol=1e-10):
     you should call it converged. Return the ranks, and set `pagerank.iterations`
     to how many you actually used, because Task 2 measures that.
     """
-    if not 0 <= beta < 1: raise ValueError("beta must be in [0, 1)")
-    nodes = list(graph); n = len(nodes)
-    if not n: pagerank.iterations = 0; return {}
-    rank = {v: 1.0 / n for v in nodes}
+    nodes = list(graph)
+    n = len(nodes)
+    if n == 0:
+        pagerank.iterations = 0
+        return {}
+    index = {v: i for i, v in enumerate(nodes)}
+    outgoing = [[index[w] for w in graph[v] if w in index] for v in nodes]
+    ranks = [1.0 / n] * n
+    used = 0
     for used in range(1, iterations + 1):
-        dangling = sum(rank[v] for v in nodes if not graph[v])
-        base = (1.0 - beta + beta * dangling) / n
-        nxt = {v: base for v in nodes}
-        for v, outs in graph.items():
-            if outs:
-                share = beta * rank[v] / len(outs)
-                for w in outs: nxt[w] += share
-        delta = sum(abs(nxt[v] - rank[v]) for v in nodes)
-        rank = nxt
-        if delta < tol: break
+        dangling = sum(ranks[i] for i, links in enumerate(outgoing) if not links)
+        nxt = [(1.0 - beta) / n + beta * dangling / n for _ in nodes]
+        for i, links in enumerate(outgoing):
+            if links:
+                share = beta * ranks[i] / len(links)
+                for j in links:
+                    nxt[j] += share
+        delta = sum(abs(a - b) for a, b in zip(nxt, ranks))
+        ranks = nxt
+        if delta < tol:
+            break
     pagerank.iterations = used
-    return rank
+    return dict(zip(nodes, ranks))
 
 
 def pagerank_no_teleport(graph, iterations=100):
@@ -66,16 +72,21 @@ def pagerank_no_teleport(graph, iterations=100):
     It exists so you can watch both failures happen rather than take them on
     trust. The harness checks that it really does fail.
     """
-    nodes = list(graph); n = len(nodes)
-    rank = {v: 1.0 / n for v in nodes} if n else {}
+    nodes = list(graph)
+    n = len(nodes)
+    ranks = [1.0 / n] * n if n else []
+    index = {v: i for i, v in enumerate(nodes)}
     for _ in range(iterations):
-        nxt = {v: 0.0 for v in nodes}
-        for v, outs in graph.items():
+        nxt = [0.0] * n
+        for i, node in enumerate(nodes):
+            outs = graph[node]
             if outs:
-                share = rank[v] / len(outs)
-                for w in outs: nxt[w] += share
-        rank = nxt
-    return rank
+                share = ranks[i] / len(outs)
+                for target in outs:
+                    if target in index:
+                        nxt[index[target]] += share
+        ranks = nxt
+    return dict(zip(nodes, ranks))
 
 
 # ------------------------------------------------------------------- harness
