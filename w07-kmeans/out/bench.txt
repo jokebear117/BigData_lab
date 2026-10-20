@@ -1,0 +1,5 @@
+20,000 points · 20 dimensions · k=12
+
+baseline: 10,320,000 distance calls, SSE 10,737,882.94, 43 iterations, 21.48 s
+pruned:    1,371,684 distance calls, SSE 10,737,882.94, 42 iterations, 3.87 s
+distance calls reduced 86.7%; SSE difference 0.0000%

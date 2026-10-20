@@ -1,0 +1,8 @@
+Optional SON results (20,000 baskets; support 50)
+
+Single-process SON:
+- 4 chunks: 9,876 candidates; 6,397 final pairs; missing 0; extra 0; 1.81 s
+- 8 chunks: 14,201 candidates; 6,397 final pairs; missing 0; extra 0; 2.21 s
+- 16 chunks: 24,418 candidates; 6,397 final pairs; missing 0; extra 0; 1.92 s
+
+Spark SON (8 partitions): 14,695 candidates; 6,397 final pairs; missing 0; 12.46 s.

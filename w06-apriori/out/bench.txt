@@ -1,0 +1,5 @@
+20,000 baskets · 2,000 items · support 50
+
+baseline: 6,397 pairs, peak pair counters 820,259, 1.90 s
+PCY:      6,397 pairs, peak pair counters 148,595, 1.55 s
+same frequent pairs; 81.9% fewer pair counters
